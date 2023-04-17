@@ -1,15 +1,12 @@
 <?php 
     include "cola.php";
 ?>
-<!DOCTYPE html>
-<html>
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-    <title>간단한 지도 표시하기</title>
-    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=0vcgr3rahd"></script>
-    </head>
+    <script type="text/javascript" src="http://code.jquery.com/jquery-1.11.3.js"></script> 
+    <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=0vcgr3rahd&submodules=visualization"></script>
+</head>
 <body>
     <div id="map" style="width:1000px; height:500px; margin-top:40px">
     </div>
@@ -25,7 +22,43 @@
     center: new naver.maps.LatLng(37.3595704, 127.105399),
     zoom: 8
 });
+var markers = [];
+var heatmap_data = [];
+var markerClustering;
 
+function sortingMapByGubun(crimGubun)
+{
+    var newMarkers = [];
+    for(var i=0; i < markers.length; i++)
+    {
+        markers[i].setMap(null);
+    }
+    if(crimeGubun == "ALL")
+    {
+        for(var i=0; i < markers.length; i++)
+        {
+            markers[i].setMap(map);
+            newMarkers.push(markers[i]);
+        }
+    }
+    else
+    {
+        for(var i=0; i < markers.length; i++)
+        {
+            if(crimGubun == markers[i].title)
+            {
+                markers[i].setMap(map);
+                newMarkers.push(markers[i]);
+            }
+            else
+            {
+            markers[i].set.Map(null);
+            }
+        }
+    }
+    markerCluster(newMarkers);
+    map.setZoom(4);
+}
 function CustomMarker(lat, lng, crimeID, crimeGubun, serious, crimeDate, crimeTime){
     var contents_html = "";
     if(serious==1)
@@ -63,9 +96,89 @@ function CustomMarker(lat, lng, crimeID, crimeGubun, serious, crimeDate, crimeTi
     return marker;
 };
 
-var marker = new CustomMarker(37.3595704, 127.105399, "crime1", "살인", 1, "2019-03-01", "14:21:00")
-var marker2 = new CustomMarker(37.3595704, 127.105399, "crime2", "강도", 2, "2019-03-01", "14:21:00")
-var marker3 = new CustomMarker(37.3595704, 127.105399, "crime3", "사기", 3, "2019-03-01", "14:21:00")
+function loadCrimeMarker_heatmap()
+{
+<?
+$SQL = " select crime_code,lat,lng,crime_gubun,crime_time,serious from table_crime_map";
+$result = mysqli_query($db_link, $SQL);
+$index = 0;
+
+while($row=mysqli_fetch_object($result))
+{
+$idx++;
+if($row["crime_time"])
+{
+$crime_time_arr = explode("",$row["crime_time"]);
+$crime_date = $crime_time_arr[0];
+$crime_time = $crime_time_arr[1];
+}
+$crimeID = "crime". $idx;
+?>
+heatmap_data.push(new naver.maps.LatLng(<?=$row["lat"]?>,<?=$row["lng"]?>));
+<?
+}
+?>
+}
+function markerCluster(applyMarker)
+{
+    var htmlMarker1 = {
+        content: '<div style="cursor:pointer;width:40px;height:40px;line-height:42px;font-size:10px;color:white;text-align:center;font-weight:bold;background:url(https://navermaps.github.io/maps.js.ncp/docs/img/cluster-marker-1.png);background-size:contain;"></div>',
+        size:N.Size(40,40),
+        anchor:N.Point(20,20)
+    }
+    var htmlMarker2 = {
+        content: '<div style="cursor:pointer;width:40px;height:40px;line-height:42px;font-size:10px;color:white;text-align:center;font-weight:bold;background:url(https://navermaps.github.io/maps.js.ncp/docs/img/cluster-marker-2.png);background-size:contain;"></div>',
+        size:N.Size(40,40),
+        anchor:N.Point(20,20)
+    }
+    var htmlMarker3 = {
+        content: '<div style="cursor:pointer;width:40px;height:40px;line-height:42px;font-size:10px;color:white;text-align:center;font-weight:bold;background:url(https://navermaps.github.io/maps.js.ncp/docs/img/cluster-marker-3.png);background-size:contain;"></div>',
+        size:N.Size(40,40),
+        anchor:N.Point(20,20)
+    }
+    var htmlMarker4 = {
+        content: '<div style="cursor:pointer;width:40px;height:40px;line-height:42px;font-size:10px;color:white;text-align:center;font-weight:bold;background:url(https://navermaps.github.io/maps.js.ncp/docs/img/cluster-marker-4.png);background-size:contain;"></div>',
+        size:N.Size(40,40),
+        anchor:N.Point(20,20)
+    }
+     var htmlMarker5 = {
+        content: '<div style="cursor:pointer;width:40px;height:40px;line-height:42px;font-size:10px;color:white;text-align:center;font-weight:bold;background:url(https://navermaps.github.io/maps.js.ncp/docs/img/cluster-marker-5.png);background-size:contain;"></div>',
+        size:N.Size(40,40),
+        anchor:N.Point(20,20)
+    };
+
+if(markerClustering)
+{
+    markerClustering.map = null;
+    markerClustering = null;
+}
+
+markerClustering = new MarkerClustering({
+    minClusterSize:2,
+    maxZoom:8,
+    map:map,
+    markers:applyMarker,
+    disableClickZoom:false,
+    gridSize:120,
+    icons:[htmlMakr1,htmlMakr2,htmlMakr3,htmlMakr4,htmlMakr5],
+    indexGenerator:[10,100,200,500,1000],
+
+    stylingFunction:function(clusterMarker,count){
+        $(clusterMarker.getElement()).find('div:first-child').text(count);
+    }
+});
+map.refresh();
+
+}
+$(document).ready(function(){
+    loadCrimeMarker_heatmap();
+    naver.maps.onJSContentLoaded = function(){
+        var heatmap = new naver.maps.visualization.Heatmap({
+            map : map,
+            data: heatmap_data
+        });
+    };
+});
 
 function overCrime(childID)
 {
@@ -75,3 +188,57 @@ function outCrime(childID)
 {
     $("#"+child).hide();
 }
+
+
+// var marker = new naver.maps.Marker({
+//     position: new naver.maps.LatLng(37.3595704, 127.105399),
+//     map: map,
+//     title: '사기',
+//     icon: {
+//         content: [
+//                     '<div style="padding-top:5px;padding-bottom:5px;padding-left:5px;padding-right:5px;background-color:#d3cc07;color:white; text-align:center;border:1px solid #a09b07; border-radius;14px; opacity:75%">' 
+//                     + '<div style="font-weight: bold; font-size:14px"> 사기 </div>' 
+//                     + '<div style="font-weight: normal; font-size:13px; margin-top:3px"> 2016-01-21<br/>09시13분</div>'
+//                     + '</div>'
+//         ].join(''),
+//         size: new naver.maps.Size(38, 58),
+//         anchor: new naver.maps.Point(19, 58),
+//     },
+// });
+
+// var marker = new naver.maps.Marker({
+//     position: new naver.maps.LatLng(37.3595704, 127.105399),
+//     map: map,
+//     title: '강도',
+//     icon: {
+//         content: [
+//                     '<div style="padding-top:5px;padding-bottom:5px;padding-left:5px;padding-right:5px;background-color:#e0692f;color:white; text-align:center;border:1px solid #831616; border-radius;14px; opacity:75%">' 
+//                     + '<div style="font-weight: bold; font-size:14px"> 강도 </div>' 
+//                     + '<div style="font-weight: normal; font-size:13px; margin-top:3px"> 2015-04-21<br/>08시43분</div>'
+//                     + '</div>'
+//         ].join(''),
+//         size: new naver.maps.Size(38, 58),
+//         anchor: new naver.maps.Point(19, 58),
+
+//     },
+//     draggable:false
+// });
+
+// var marker = new naver.maps.Marker({
+//     position: new naver.maps.LatLng(37.3595704, 127.105399),
+//     map: map,
+//     title: '살인',
+//     icon: {
+//         content: [
+//                     '<div style="padding-top:5px;padding-bottom:5px;padding-left:5px;padding-right:5px;background-color:#12121;color:white; text-align:center;border:1px solid #831616; border-radius;14px; opacity:75%">' 
+//                     + '<div style="font-weight: bold; font-size:14px"> 강도 </div>' 
+//                     + '<div style="font-weight: normal; font-size:13px; margin-top:3px"> 2015-03-01<br/>20시50분</div>'
+//                     + '</div>'
+//         ].join(''),
+//         size: new naver.maps.Size(38, 58),
+//         anchor: new naver.maps.Point(19, 58),
+
+//     },
+//     draggable:false
+// });
+</script>
